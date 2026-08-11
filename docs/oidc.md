@@ -12,7 +12,7 @@ entrypoint, so they are set as container environment variables (see
 
 | Variable                 | Required     | Meaning                                                                    |
 | ------------------------ | ------------ | -------------------------------------------------------------------------- |
-| `VITE_OIDC_ENABLED`      | –            | `true`/`1`/`yes`/`on` turns the login flow on. Default off.                 |
+| `VITE_OIDC_ENABLED`      | –            | `true`/`1`/`yes`/`on` turns the login flow on. Default off.                |
 | `VITE_OIDC_AUTHORITY`    | when enabled | Realm issuer, e.g. `https://keycloak.run.dmf.qvest-digital.com/realms/dmf` |
 | `VITE_OIDC_CLIENT_ID`    | when enabled | Public client id registered in the realm.                                  |
 | `VITE_OIDC_REDIRECT_URI` | –            | Defaults to the browser origin. Must match a client redirect URI.          |
