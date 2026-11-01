@@ -15,11 +15,19 @@ const stripTrailingSlash = (value: string) => value.replace(/\/+$/, "");
 
 export type TOidcConfig = {
   enabled: boolean;
-  /** Realm issuer, e.g. https://keycloak.run.dmf.qvest-digital.com/realms/dmf */
+  /** Realm issuer, e.g. https://keycloak.example.com/realms/myrealm */
   authority: string;
   clientId: string;
   redirectUri: string;
   scope: string;
+  /**
+   * Reach the realm's discovery, token, user info and revocation endpoints
+   * through the page's own origin, which must proxy the authority's path to
+   * the realm. Keycloak answers a cross-origin call only from an origin listed
+   * on the client, so this is what lets one client serve origins it does not
+   * list.
+   */
+  sameOrigin: boolean;
 };
 
 export const readOidcConfig = (
@@ -55,6 +63,29 @@ export const readOidcConfig = (
       typeof env.VITE_OIDC_SCOPE === "string" && env.VITE_OIDC_SCOPE
         ? env.VITE_OIDC_SCOPE
         : "openid profile email",
+    sameOrigin: isTruthy(env.VITE_OIDC_SAME_ORIGIN),
+  };
+};
+
+/**
+ * The settings that move every request the app itself sends to the realm onto
+ * `origin`, under the authority's path. The authorization and end-session
+ * endpoints stay on the realm: the browser navigates to those, so no CORS
+ * applies, and the login page has to be the realm's own.
+ *
+ * The endpoint paths are Keycloak's. A seed overrides the discovery document,
+ * so the issuer still comes from the realm and tokens are checked against it.
+ */
+export const sameOriginSettings = (authority: string, origin: string) => {
+  const base = `${origin}${new URL(authority).pathname.replace(/\/+$/, "")}`;
+  const endpoint = (name: string) => `${base}/protocol/openid-connect/${name}`;
+  return {
+    metadataUrl: `${base}/.well-known/openid-configuration`,
+    metadataSeed: {
+      token_endpoint: endpoint("token"),
+      userinfo_endpoint: endpoint("userinfo"),
+      revocation_endpoint: endpoint("revoke"),
+    },
   };
 };
 
@@ -90,6 +121,9 @@ export const createUserManager = (config: TOidcConfig): UserManager =>
     automaticSilentRenew: true,
     // Survives a page reload; sessionStorage would drop the session per tab.
     userStore: new WebStorageStateStore({ store: window.localStorage }),
+    ...(config.sameOrigin
+      ? sameOriginSettings(config.authority, window.location.origin)
+      : {}),
   });
 
 /**
