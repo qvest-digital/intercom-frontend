@@ -18,6 +18,17 @@ const HeaderWrapper = styled.div`
   justify-content: space-between;
 `;
 
+const HeaderActions = styled.div`
+  display: flex;
+  align-items: center;
+`;
+
+/**
+ * Where a page puts its user settings button, so it sits in the header's row
+ * beside the signed-in user instead of on top of it.
+ */
+export const HEADER_ACTIONS_ID = "header-actions";
+
 const HomeButton = styled.button`
   background: ${backgroundColour};
   border: none;
@@ -89,7 +100,10 @@ export const Header: FC = () => {
           <HeadsetIcon />
           Open Intercom
         </HomeButton>
-        <UserMenu />
+        <HeaderActions>
+          <UserMenu />
+          <div id={HEADER_ACTIONS_ID} />
+        </HeaderActions>
       </HeaderWrapper>
       {confirmExitModalOpen && (
         <ConfirmationModal

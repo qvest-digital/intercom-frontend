@@ -1,13 +1,12 @@
 import styled from "@emotion/styled";
-import { FC } from "react";
+import { FC, useLayoutEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { UserSettingsIcon } from "../../assets/icons/icon";
 import { useStorage } from "../accessing-local-storage/access-local-storage";
 import { isMobile } from "../../bowser";
+import { HEADER_ACTIONS_ID } from "../header";
 
 const UserSettingsWrapper = styled.div`
-  position: absolute;
-  top: 0;
-  right: 0;
   padding: 1rem 2rem 1rem 0;
   display: flex;
   flex-direction: row;
@@ -48,10 +47,18 @@ export const UserSettingsButton: FC<UserSettingsButtonProps> = (props) => {
   const { readFromStorage } = useStorage();
   const username = readFromStorage("username") || "Guest";
 
-  return (
+  // The header renders before the page, so its slot exists once this mounts.
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    setSlot(document.getElementById(HEADER_ACTIONS_ID));
+  }, []);
+
+  const button = (
     <UserSettingsWrapper className={isMobile ? "mobile" : ""} onClick={onClick}>
       <Username>{username}</Username>
       <UserSettingsIcon />
     </UserSettingsWrapper>
   );
+
+  return slot ? createPortal(button, slot) : button;
 };
