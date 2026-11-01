@@ -10,13 +10,14 @@ Vite inlines these at **build** time, and this image runs `npm run build` in its
 entrypoint, so they are set as container environment variables (see
 `scripts/entrypoint.sh`), not baked into the image.
 
-| Variable                 | Required     | Meaning                                                                    |
-| ------------------------ | ------------ | -------------------------------------------------------------------------- |
-| `VITE_OIDC_ENABLED`      | –            | `true`/`1`/`yes`/`on` turns the login flow on. Default off.                |
-| `VITE_OIDC_AUTHORITY`    | when enabled | Realm issuer, e.g. `https://keycloak.run.dmf.qvest-digital.com/realms/dmf` |
-| `VITE_OIDC_CLIENT_ID`    | when enabled | Public client id registered in the realm.                                  |
-| `VITE_OIDC_REDIRECT_URI` | –            | Defaults to the browser origin. Must match a client redirect URI.          |
-| `VITE_OIDC_SCOPE`        | –            | Defaults to `openid profile email`.                                        |
+| Variable                 | Required     | Meaning                                                             |
+| ------------------------ | ------------ | ------------------------------------------------------------------- |
+| `VITE_OIDC_ENABLED`      | –            | `true`/`1`/`yes`/`on` turns the login flow on. Default off.         |
+| `VITE_OIDC_AUTHORITY`    | when enabled | Realm issuer, e.g. `https://keycloak.example.com/realms/myrealm`    |
+| `VITE_OIDC_CLIENT_ID`    | when enabled | Public client id registered in the realm.                           |
+| `VITE_OIDC_REDIRECT_URI` | –            | Defaults to the browser origin. Must match a client redirect URI.   |
+| `VITE_OIDC_SCOPE`        | –            | Defaults to `openid profile email`.                                 |
+| `VITE_OIDC_SAME_ORIGIN`  | –            | Sends the app's own realm requests through its origin. Default off. |
 
 If the flag is on but the authority or client id is missing, the app logs an
 error and continues **with OIDC disabled** rather than rendering a page nobody
@@ -46,13 +47,31 @@ redirect off-site.
 
 ## Realm client
 
-Not yet created. It must be a **public** client with PKCE — a browser app cannot
-hold a client secret. See `docs/oidc.md` in `intercom-manager` for the
-`KeycloakRealmImport` snippet, including the audience mapper needed if the
-manager is run with `OIDC_AUDIENCE`.
-
-Redirect URIs must cover every origin the app is served from, including
+It must be a **public** client with PKCE: a browser app cannot hold a client
+secret. Redirect URIs must cover every origin the app is served from, including
 `http://localhost:5173` for local development.
+
+## Same-origin realm requests
+
+The app fetches the discovery document and exchanges and refreshes tokens
+itself, so Keycloak sees those as cross-origin requests and answers them only
+from an origin listed in the client's web origins. With
+`VITE_OIDC_SAME_ORIGIN` on, the app sends them to its own origin instead, under
+the authority's path:
+
+```
+<origin>/realms/<realm>/.well-known/openid-configuration
+<origin>/realms/<realm>/protocol/openid-connect/{token,userinfo,revoke}
+```
+
+The web server in front of the app has to proxy those paths to the realm, with
+the realm's own `Host` and without the browser's `Origin` header, which
+Keycloak would otherwise check against the client. The login and logout pages
+stay on the realm: the browser navigates to those, so no CORS applies. The
+issuer still comes from the realm's discovery document, so tokens are checked
+against it.
+
+With this, the client needs no web origins at all.
 
 ## What is not covered yet
 

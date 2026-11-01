@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { readReturnTo, readOidcConfig } from "./oidc-settings";
+import {
+  createUserManager,
+  readReturnTo,
+  readOidcConfig,
+  sameOriginSettings,
+} from "./oidc-settings";
 
 const AUTHORITY = "https://keycloak.example.com/realms/dmf";
 
@@ -70,6 +75,56 @@ describe("readOidcConfig", () => {
 
   it("defaults the scope to openid profile email", () => {
     expect(readOidcConfig(configured()).scope).toBe("openid profile email");
+  });
+});
+
+describe("same-origin realm requests", () => {
+  it("is off unless asked for", () => {
+    expect(readOidcConfig(configured()).sameOrigin).toBe(false);
+    expect(
+      readOidcConfig(configured({ VITE_OIDC_SAME_ORIGIN: "true" })).sameOrigin
+    ).toBe(true);
+  });
+
+  // Keycloak refuses a cross-origin token request from an origin the client
+  // does not list, so every fetch the app makes has to stay on its own origin.
+  it("moves discovery, token, user info and revocation onto the origin", () => {
+    expect(
+      sameOriginSettings(`${AUTHORITY}/`, "https://app.example.com")
+    ).toEqual({
+      metadataUrl:
+        "https://app.example.com/realms/dmf/.well-known/openid-configuration",
+      metadataSeed: {
+        token_endpoint:
+          "https://app.example.com/realms/dmf/protocol/openid-connect/token",
+        userinfo_endpoint:
+          "https://app.example.com/realms/dmf/protocol/openid-connect/userinfo",
+        revocation_endpoint:
+          "https://app.example.com/realms/dmf/protocol/openid-connect/revoke",
+      },
+    });
+  });
+
+  // The issuer and the login page have to stay the realm's own.
+  it("keeps the authority on the realm", () => {
+    const { settings } = createUserManager(
+      readOidcConfig(configured({ VITE_OIDC_SAME_ORIGIN: "true" }))
+    );
+    expect(settings.authority).toBe(AUTHORITY);
+    expect(settings.metadataUrl).toBe(
+      `${window.location.origin}/realms/dmf/.well-known/openid-configuration`
+    );
+    expect(settings.metadataSeed?.token_endpoint).toBe(
+      `${window.location.origin}/realms/dmf/protocol/openid-connect/token`
+    );
+  });
+
+  it("talks to the realm directly when off", () => {
+    const { settings } = createUserManager(readOidcConfig(configured()));
+    expect(settings.metadataUrl).toBe(
+      `${AUTHORITY}/.well-known/openid-configuration`
+    );
+    expect(settings.metadataSeed?.token_endpoint).toBeUndefined();
   });
 });
 
