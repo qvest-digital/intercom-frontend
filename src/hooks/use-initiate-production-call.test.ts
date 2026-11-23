@@ -83,6 +83,7 @@ describe("useInitiateProductionCall", () => {
     mockUseDevicePermissions.mockReturnValue({
       permission: true,
       denied: false,
+      error: null,
     });
     mockUseFetchDevices.mockReturnValue([
       mockGetUpdatedDevices,
