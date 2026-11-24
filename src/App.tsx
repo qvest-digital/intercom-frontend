@@ -8,7 +8,10 @@ import {
   useLocation,
 } from "react-router";
 import { ErrorPage } from "./components/router-error.tsx";
-import { useDevicePermissions } from "./hooks/use-device-permission.ts";
+import {
+  TDeviceAccessError,
+  useDevicePermissions,
+} from "./hooks/use-device-permission.ts";
 import { LandingPage } from "./components/landing-page/landing-page.tsx";
 import { useInitializeGlobalStateReducer } from "./global-state/global-state-reducer.ts";
 import { GlobalStateContext } from "./global-state/context-provider.tsx";
@@ -62,7 +65,7 @@ const NotFound = () => {
 
 type AppContentProps = {
   continueToApp: boolean;
-  denied: boolean;
+  deviceError: TDeviceAccessError | null;
   permission: boolean;
   apiError: boolean;
   userSettings: TUserSettings | null;
@@ -72,7 +75,7 @@ type AppContentProps = {
 
 const AppContent = ({
   continueToApp,
-  denied,
+  deviceError,
   permission,
   apiError,
   userSettings,
@@ -122,16 +125,15 @@ const AppContent = ({
         )}
         {continueToApp && (
           <>
-            {denied && (
+            {deviceError && (
               <DisplayBoxPositioningContainer>
                 <DisplayWarning
-                  text="To use this application it has to be granted access to audio devices. Reload browser and/or reset permissions to try
-            again."
-                  title="Permissions have been denied"
+                  text={deviceError.text}
+                  title={deviceError.title}
                 />
               </DisplayBoxPositioningContainer>
             )}
-            {!permission && !denied && (
+            {!permission && !deviceError && (
               <DisplayBoxPositioningContainer>
                 <DisplayWarning
                   text="To use this application it has to be granted access to audio devices."
@@ -147,7 +149,7 @@ const AppContent = ({
                 />
               </DisplayBoxPositioningContainer>
             )}
-            {permission && !denied && !apiError && userSettings && (
+            {permission && !deviceError && !apiError && userSettings && (
               <Routes>
                 <>
                   <Route
@@ -196,7 +198,9 @@ const AppContent = ({
 const App = () => {
   const [unsupportedContinue, setUnsupportedContinue] = useState(false);
   const continueToApp = isValidBrowser || unsupportedContinue;
-  const { denied, permission } = useDevicePermissions({ continueToApp });
+  const { error: deviceError, permission } = useDevicePermissions({
+    continueToApp,
+  });
   const initializedGlobalState = useInitializeGlobalStateReducer();
   const [{ devices, userSettings }, dispatch] = initializedGlobalState;
   const [apiError, setApiError] = useState(false);
@@ -212,7 +216,7 @@ const App = () => {
     <GlobalStateContext.Provider value={initializedGlobalState}>
       <AppContent
         continueToApp={continueToApp}
-        denied={denied}
+        deviceError={deviceError}
         permission={permission}
         apiError={apiError}
         userSettings={userSettings}
